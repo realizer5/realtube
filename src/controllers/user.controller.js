@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import { Types } from "mongoose";
 
 const options = { httpOnly: true, secure: true };
 
@@ -170,7 +171,28 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, channel[0], "User channel fetched successfully"));
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = await User.aggregate([
+        { $match: { _id: Types.ObjectId.createFromTime(req.user._id) } },
+        {
+            $lookup: {
+                from: "videos", localField: "watchHistory", foreignField: "_id", as: "watchHistory",
+                pipeline: [
+                    { // extracts owner from videos document got from watchHistory
+                        $lookup: {
+                            from: "users", localField: "owner", foreignField: "_id", as: "owner",
+                            pipeline: [{ $project: { fullName: 1, username: 1, avatar: 1 } }]
+                        }
+                    },
+                    { $addFields: { owner: { $first: "$owner" } } } // overwrites owner field and gives first value of response Array
+                ]
+            }
+        },
+    ]);
+    return res.status(200).json(new ApiResponse(200, user[0].watchHistory, "WatchHistory fetched successfully"));
+});
+
 export {
     registerUser, loginUser, logoutUser, refreshAccessToken, getCurrentUser, changeCurrentPassword,
-    updateUserAvatar, updateAccountDetails, updateUserCoverImage, getUserChannelProfile
+    updateUserAvatar, updateAccountDetails, updateUserCoverImage, getUserChannelProfile, getWatchHistory
 };
