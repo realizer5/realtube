@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteImageOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
@@ -28,7 +28,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // upload them to cloudinary, avatar
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-    if (!avatar) throw new ApiError(400, "avatar is required");
+    if (!avatar) throw new ApiError(400, "error while uploading avatar");
     // create user object - create entry in db
     const user = await User.create({
         fullName, avatar: avatar.url, coverImage: coverImage?.url || "", email, password,
@@ -90,17 +90,17 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const user = await User.findById(decodedToken._id);
         if (!user) throw new ApiError(401, "invalid refresh token");
         if (incomingRefreshToken !== user?.refreshToken) throw new ApiError(401, "refresh token is expired or used");
-        const { accessToken, newRefreshToken } = await generateAccessAndRefreshTokens(user._id);
+        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
         return res.status(200).cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", newRefreshToken, options)
-            .json(new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Access token refreshed"));
+            .cookie("refreshToken", refreshToken, options)
+            .json(new ApiResponse(200, { accessToken, refreshToken }, "Access token refreshed"));
     } catch (error) {
         throw new ApiError(401, error?.message || "invalid refresh token");
     }
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.bdoy;
+    const { oldPassword, newPassword } = req.body;
     const user = await User.findById(req.user?._id);
     const isPasswordValid = await user.isPasswordCorrect(oldPassword);
     if (!isPasswordValid) throw new ApiError(400, "invalid old password");
@@ -126,7 +126,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) throw new ApiError(400, "avatar file is missing");
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     if (!avatar.url) throw new ApiError(400, "error while uploading avatar");
-    // todo: delete old cloudinary file
+    deleteImageOnCloudinary(req.user.avatar);
     const user = await User.findByIdAndUpdate(req.user?._id, { $set: { avatar: avatar.url } }, { new: true })
         .select("-password");
     res.status(200).json(new ApiResponse(200, user, "avatar image updated successfully"));
@@ -137,8 +137,8 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     if (!coverImageLocalPath) throw new ApiError(400, "cover image file is missing");
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
     if (!coverImage.url) throw new ApiError(400, "error while uploading cover image");
-    // todo: delete old cloudinary file
-    const user = await User.findByIdAndUpdate(req.user?._id, { $set: { avatar: coverImage.url } }, { new: true })
+    deleteImageOnCloudinary(req.user.coverImage);
+    const user = await User.findByIdAndUpdate(req.user?._id, { $set: { coverImage: coverImage.url } }, { new: true })
         .select("-password");
     res.status(200).json(new ApiResponse(200, user, "cover image updated successfully"));
 });
