@@ -90,10 +90,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         const user = await User.findById(decodedToken._id);
         if (!user) throw new ApiError(401, "invalid refresh token");
         if (incomingRefreshToken !== user?.refreshToken) throw new ApiError(401, "refresh token is expired or used");
-        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+        const accessToken = user.generateAccessToken();
         return res.status(200).cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", refreshToken, options)
-            .json(new ApiResponse(200, { accessToken, refreshToken }, "Access token refreshed"));
+            .json(new ApiResponse(200, { accessToken }, "Access token refreshed"));
     } catch (error) {
         throw new ApiError(401, error?.message || "invalid refresh token");
     }
@@ -173,7 +172,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
 const getWatchHistory = asyncHandler(async (req, res) => {
     const user = await User.aggregate([
-        { $match: { _id: Types.ObjectId.createFromTime(req.user._id) } },
+        { $match: { _id: Types.ObjectId.createFromHexString(String(req.user._id)) } },
         {
             $lookup: {
                 from: "videos", localField: "watchHistory", foreignField: "_id", as: "watchHistory",
