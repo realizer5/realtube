@@ -7,12 +7,15 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId } = req.query;
-    const options = { page: parseInt(page), limit: parseInt(limit), [sortBy]: sortType }
+    const pageNumber = parseInt(page) || 1;
+    const limitNumber = parseInt(limit) || 10;
+    const options = { page: pageNumber, limit: limitNumber, sort: { [sortBy]: sortType } }
     let userIdObject = null;
-    if (userId) userIdObject = Types.ObjectId.createFromHexString(userId);
+    if (userId && Types.ObjectId.isValid(userId)) userIdObject = Types.ObjectId.createFromHexString(userId);
     const match = {
         ...(query && { title: { $regex: query, $options: "i" } }),
-        ...(userIdObject && { owner: userIdObject })
+        ...(userIdObject && { owner: userIdObject }),
+        ...(!req.user._id.equals(userIdObject) && { isPublished: true })
     };
     const aggregate = Video.aggregate([
         { $match: match },
@@ -27,6 +30,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
         },
     ]);
     const videos = await Video.aggregatePaginate(aggregate, options);
+    if (!videos) throw new ApiError(500, "error while fetching videos");
     return res.status(200).json(new ApiResponse(200, videos, "videos fetched successfully"));
 });
 
@@ -51,18 +55,44 @@ const publishVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
+    const video = await Video.findById(videoId);
+    if (!video) throw new ApiError(400, "could not find video with this id");
+    return res.status(200).json(new ApiResponse(200, video, "video fetched successfully"));
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
+    const { title, description } = req.body;
+    if (!title || !description) throw new ApiError(400, "All fields are required");
+    const thumbnailLocalPath = req.file?.path;
+    if (!thumbnailLocalPath) throw new ApiError(400, "thumbnail file is missing");
+    const thumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+    if (!thumbnail.url) throw new ApiError(400, "error while uploading avatar");
+    const oldVideo = await Video.findById(videoId);
+    deleteImageOnCloudinary(oldVideo.thumbnail);
+    const video = await Video.findByIdAndUpdate(videoId, { $set: { title, description, thumbnail } }, { new: true });
+    if (!video) throw new ApiError(400, "could not update video with this id");
+    return res.status(200).json(new ApiResponse(200, video, "video updated successfully"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
+    const deletedVideo = await Video.findByIdAndDelete(videoId);
+    if (!deletedVideo) throw new ApiError(500, "video not found")
+    return res.status(200).json(new ApiResponse(200, {}, "video deleted successfully"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
+    const video = await Video.findById(videoId);
+    if (!video) throw new ApiError(500, "video not found")
+    video.isPublished = !video.isPublished;
+    await video.save({ validateBeforeSave: false });
+    return res.status(200).json(new ApiResponse(200, video, "video published successfully"));
 });
 
-export { publishVideo, getAllVideos, getVideoById };
+export { publishVideo, getAllVideos, getVideoById, updateVideo, deleteVideo, togglePublishStatus };
