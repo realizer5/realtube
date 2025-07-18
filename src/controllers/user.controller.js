@@ -171,7 +171,9 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 });
 
 const getWatchHistory = asyncHandler(async (req, res) => {
-    const user = await User.aggregate([
+    const { page = 1, limit = 10 } = req.params;
+    const options = { page, limit }
+    const aggregate = User.aggregate([
         { $match: { _id: Types.ObjectId.createFromHexString(String(req.user._id)) } },
         {
             $lookup: {
@@ -188,7 +190,8 @@ const getWatchHistory = asyncHandler(async (req, res) => {
             }
         },
     ]);
-    return res.status(200).json(new ApiResponse(200, user[0].watchHistory, "WatchHistory fetched successfully"));
+    const watchHistory = await User.aggregatePaginate(aggregate, options);
+    return res.status(200).json(new ApiResponse(200, watchHistory, "WatchHistory fetched successfully"));
 });
 
 export {

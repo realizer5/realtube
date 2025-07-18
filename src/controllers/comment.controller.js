@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const getVideoComments = asyncHandler(async (req, res) => {
     const { videoId } = req.params
-    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId not found");
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
     const { page = 1, limit = 10 } = req.query
     const options = { page, limit };
     const aggregate = Comment.aggregate([
@@ -28,6 +28,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
 const addComment = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+    if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
     const { content } = req.body;
     if (!content) throw new ApiError(400, "comment is required");
     const comment = await Comment.create({ content, video: videoId, owner: req.user?._id });
@@ -36,16 +37,17 @@ const addComment = asyncHandler(async (req, res) => {
 })
 
 const updateComment = asyncHandler(async (req, res) => {
-    const { videoId } = req.params
     const { content } = req.body;
     if (!content) throw new ApiError(400, "comment is required");
-    const comment = await Comment.findByIdAndUpdate({ content });
-    if (!comment) throw new ApiError(500, "something went wrong while creating video");
-    return res.status(200).json(new ApiResponse(200, comment, "comment created successfully"));
+    const comment = await Comment.findByIdAndUpdate(req.comment._id, { $set: { content } }, { new: true });
+    if (!comment) throw new ApiError(400, "error while updating comment");
+    return res.status(200).json(new ApiResponse(200, comment, "comment updated successfully"));
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
-    // TODO: delete a comment
+    const deletedComment = await Comment.findByIdAndDelete(req.comment._id);
+    if (!deletedComment) throw new ApiError(500, "error while deleting comment")
+    return res.status(200).json(new ApiResponse(200, {}, "comment deleted successfully"));
 })
 
 export { getVideoComments, addComment, updateComment, deleteComment };
