@@ -1,5 +1,5 @@
-# Backend in Express & Mongoose
-This is a practice repository for leaning bakcend with Express and Mongoose
+# Realtube
+a Youtube like website backend
 
 ## Project Structure
 
