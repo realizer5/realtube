@@ -3,7 +3,7 @@ import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { deleteImageOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy = "createdAt", sortType = "desc", userId } = req.query;
@@ -54,7 +54,7 @@ const publishVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params;
     if (!Types.ObjectId.isValid(videoId)) throw new ApiError(400, "videoId is not valid");
-    const video = await Video.findById(videoId);
+    const video = await Video.findById(videoId).populate('owner', 'fullName username avatar');
     if (!video) throw new ApiError(400, "could not find video with this id");
     return res.status(200).json(new ApiResponse(200, video, "video fetched successfully"));
 });
@@ -68,14 +68,16 @@ const updateVideo = asyncHandler(async (req, res) => {
     if (!thumbnail.url) throw new ApiError(400, "error while uploading thumbnail");
     const video = await Video.findByIdAndUpdate(req.video._id, { $set: { title, description, thumbnail: thumbnail.url } }, { new: true });
     if (!video) throw new ApiError(400, "could not update video with this id");
-    deleteImageOnCloudinary(req.video?.thumbnail);
+    deleteOnCloudinary(req.video?.thumbnail);
     return res.status(200).json(new ApiResponse(200, video, "video updated successfully"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const deletedVideo = await Video.findByIdAndDelete(req.video._id);
     if (!deletedVideo) throw new ApiError(500, "error while deleting video")
-    // TODO: delete thumbnail and video from cloudinary
+    const thumbnail = await deleteOnCloudinary(req.video.thumbnail);
+    const video = await deleteOnCloudinary(req.video.videoFile, "video");
+    if (!thumbnail || !video) throw new ApiError(500, "error while deleting video & thumbnail on cloudinary")
     return res.status(200).json(new ApiResponse(200, {}, "video deleted successfully"));
 });
 

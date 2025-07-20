@@ -16,9 +16,7 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
     let { userId } = req.params;
     if (!Types.ObjectId.isValid(userId)) throw new ApiError(400, "userid is not valid");
     userId = Types.ObjectId.createFromHexString(userId);
-    const userPlaylists = await Playlist.aggregate([
-        { $match: { owner: userId } },
-    ]);
+    const userPlaylists = await Playlist.find({ owner: userId }).populate("owner", "fullName username avatar");
     if (!userPlaylists) throw new ApiError(400, "no playlist found with this userId");
     return res.status(200).json(new ApiResponse(200, userPlaylists, "user playlists fetched successfullY"));
 });
@@ -26,7 +24,7 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
 const getPlaylistById = asyncHandler(async (req, res) => {
     const { playlistId } = req.params;
     if (!Types.ObjectId.isValid(playlistId)) throw new ApiError(400, "playlistId is not valid");
-    const playlist = await Playlist.findById(playlistId);
+    const playlist = await Playlist.findById(playlistId).populate("owner", "fullName username avatar");
     if (!playlistId) throw new ApiError(400, "playlist does not exist");
     return res.status(200).json(new ApiResponse(200, playlist, "playlist fetched successfullY"));
 });

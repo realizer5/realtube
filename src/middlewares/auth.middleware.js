@@ -25,7 +25,7 @@ const commentAuth = asyncHandler(async (req, _, next) => {
     try {
         const { commentId } = req.params;
         if (!Types.ObjectId.isValid(commentId)) throw new ApiError(400, "Invalid commentId");
-        const comment = await Comment.findById(commentId);
+        const comment = await Comment.find(commentId);
         if (!comment) throw new ApiError(400, "comment not found");
         if (!comment.owner.equals(req.user._id)) throw new ApiError(401, "user is not authorized to do this operation");
         req.comment = comment; // cause it's middleware add in req

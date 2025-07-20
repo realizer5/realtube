@@ -20,11 +20,11 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 };
 
-const deleteImageOnCloudinary = async (url) => {
+const deleteOnCloudinary = async (url, type) => {
     try {
         if (!url) throw new Error("url is empty");
         const publicId = url.substring((url.lastIndexOf("/") + 1), url.lastIndexOf("."));
-        const response = await cloudinary.uploader.destroy(publicId);
+        const response = await cloudinary.uploader.destroy(publicId, { resource_type: type });
         return response;
     } catch (error) {
         console.error("file deletion failed: ", error);
@@ -32,4 +32,4 @@ const deleteImageOnCloudinary = async (url) => {
     }
 }
 
-export { uploadOnCloudinary, deleteImageOnCloudinary };
+export { uploadOnCloudinary, deleteOnCloudinary };
