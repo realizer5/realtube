@@ -22,8 +22,9 @@ const getUserTweets = asyncHandler(async (req, res) => {
 
 const updateTweet = asyncHandler(async (req, res) => {
     const { tweetId } = req.params;
+    const { content } = req.body;
     if (!isValidObjectId(tweetId)) throw new ApiError(400, "tweet id is not valid");
-    const updatedTweet = await Tweet.findByIdAndUpdate(tweetId, { $set: { content } },);
+    const updatedTweet = await Tweet.findByIdAndUpdate(tweetId, { $set: { content } }, { new: true });
     if (!updatedTweet) throw new ApiError(500, "error while updating tweet");
     return res.status(200).json(new ApiResponse(200, updatedTweet, "tweet updated successfully"));
 })

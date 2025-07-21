@@ -9,21 +9,21 @@ import { Types } from "mongoose"
 const getChannelStats = asyncHandler(async (req, res) => {
     const userId = Types.ObjectId.createFromHexString(String(req.user._id));
     const subscribers = await Subscription.countDocuments({ channel: userId });
-    if (!subscribers) throw new ApiError(500, "error while fetching subscribers count");
+    if (subscribers === null && subscribers === undefined) {
+        throw new ApiError(500, "error while fetching subscribers count");
+    }
     const views = await Video.aggregate([
         { $match: { owner: userId } },
-        { $group: { totalViews: { $sum: "$views" } } },
+        { $group: { _id: null, totalViews: { $sum: "$views" } } },
     ]);
     if (!views) throw new ApiError(500, "error while fetching views count");
     const totalViews = views[0]?.totalViews || 0;
     const videos = await Video.countDocuments({ owner: userId });
     const likes = await Like.aggregate([
-        {
-            $lookup: {
-                from: "videos", localField: "video", foreignField: "_id", as: "video",
-                pipeline: [{ $match: { owner: userId } },]
-            }
-        },
+        { $match: { video: { $exists: true, $ne: null } } },
+        { $lookup: { from: "videos", localField: "video", foreignField: "_id", as: "video", } },
+        { $unwind: "$video" },
+        { $match: { "video.owner": userId } },
         { $count: "totalLikes" },
     ]);
     if (!likes) throw new ApiError(500, "error while fetching likes count");
@@ -33,6 +33,8 @@ const getChannelStats = asyncHandler(async (req, res) => {
 });
 
 const getChannelVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10 } = req.params;
+    const options = { page, limit };
     const userId = Types.ObjectId.createFromHexString(String(req.user._id));
     const aggregate = Video.aggregate([{ $match: { owner: userId } },]);
     const videos = await Video.aggregatePaginate(aggregate, options);

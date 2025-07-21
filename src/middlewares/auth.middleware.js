@@ -6,6 +6,7 @@ import { Video } from "../models/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
+import { Tweet } from "../models/tweet.model.js";
 
 const verifyJWT = asyncHandler(async (req, _, next) => {
     try {
@@ -25,7 +26,7 @@ const commentAuth = asyncHandler(async (req, _, next) => {
     try {
         const { commentId } = req.params;
         if (!Types.ObjectId.isValid(commentId)) throw new ApiError(400, "Invalid commentId");
-        const comment = await Comment.find(commentId);
+        const comment = await Comment.findById(commentId);
         if (!comment) throw new ApiError(400, "comment not found");
         if (!comment.owner.equals(req.user._id)) throw new ApiError(401, "user is not authorized to do this operation");
         req.comment = comment; // cause it's middleware add in req
@@ -63,4 +64,18 @@ const playlistAuth = asyncHandler(async (req, _, next) => {
     }
 });
 
-export { verifyJWT, commentAuth, videoAuth, playlistAuth }
+const tweetAuth = asyncHandler(async (req, _, next) => {
+    try {
+        const { tweetId } = req.params;
+        if (!Types.ObjectId.isValid(tweetId)) throw new ApiError(400, "Invalid tweet id");
+        const tweet = await Tweet.findById(tweetId);
+        if (!tweet) throw new ApiError(400, "tweet not found");
+        if (!tweet.owner.equals(req.user._id)) throw new ApiError(401, "user is not authorized to do this operation");
+        req.tweet = tweet; // cause it's middleware add in req
+        next();
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Invalid tweet id");
+    }
+});
+
+export { verifyJWT, commentAuth, videoAuth, playlistAuth, tweetAuth }

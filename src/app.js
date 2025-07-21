@@ -21,7 +21,7 @@ import playlistRouter from "./routes/playlist.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import tweetRouter from "./routes/tweet.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
-import healthcheckRouter from "./routes/healcheck.routes.js";
+import healthcheckRouter from "./routes/healthcheck.routes.js";
 
 // routes declaration
 app.use("/api/v1/users", userRouter);
@@ -32,6 +32,6 @@ app.use("/api/v1/playlists", playlistRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/tweets", tweetRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
-app.use("/api/v1/healthceck", healthcheckRouter);
+app.use("/api/v1/healthcheck", healthcheckRouter);
 
 export { app };
