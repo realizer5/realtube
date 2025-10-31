@@ -28,7 +28,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
 });
 
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-    const subscribedChannels = await Subscription.find({ subscribe: req.user?._id }).populate("owner", "fullName username avatar");
+    const subscribedChannels = await Subscription.find({ subscriber: req.user?._id }).populate("channel", "fullName username avatar");
     if (!subscribedChannels) throw new ApiError(500, "error while fetching subscribed channels");
     return res.status(200).json(new ApiResponse(200, subscribedChannels, "subscribed channels fetched succesfully"));
 });
